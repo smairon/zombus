@@ -114,7 +114,10 @@ class TestProcessor:
 
     def test_processor_initialization_with_filter(self, actors_registry):
         """Test that Processor can be initialized with a stream filter."""
-        filter_func = lambda m: isinstance(m, TestTask)
+
+        def filter_func(m):
+            return isinstance(m, TestTask)
+
         processor = Processor(actors_registry, stream_filter=filter_func)
         assert processor._actors_registry is actors_registry
         assert processor._stream_filter is filter_func
@@ -157,7 +160,10 @@ class TestProcessor:
 
     async def test_processor_stream_filter_passes_message(self, actors_registry, dependency_resolver):
         """Test that stream filter allows messages through for processing."""
-        filter_func = lambda m: isinstance(m, TestTask)
+
+        def filter_func(m):
+            return isinstance(m, TestTask)
+
         processor = Processor(actors_registry, stream_filter=filter_func)
 
         async def message_stream():
@@ -170,7 +176,10 @@ class TestProcessor:
 
     async def test_processor_stream_filter_blocks_message(self, actors_registry, dependency_resolver):
         """Test that stream filter blocks messages from processing."""
-        filter_func = lambda m: isinstance(m, TestTask)
+
+        def filter_func(m):
+            return isinstance(m, TestTask)
+
         processor = Processor(actors_registry, stream_filter=filter_func)
 
         async def message_stream():
@@ -183,9 +192,10 @@ class TestProcessor:
 
     async def test_processor_single_message_single_actor(self, actors_registry, dependency_resolver):
         """Test processing a single message with a single actor.
-        
+
         The processor yields both the original batch and the processed results.
         """
+
         def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return [TestTask()]
 
@@ -202,6 +212,7 @@ class TestProcessor:
 
     async def test_processor_batch_assembly_same_type(self, actors_registry, dependency_resolver):
         """Test that messages of the same type are batched together."""
+
         def test_usecase(*messages: TestTask) -> Iterable[TestTask]:
             return messages
 
@@ -220,6 +231,7 @@ class TestProcessor:
 
     async def test_processor_batch_assembly_different_types(self, actors_registry, dependency_resolver):
         """Test that messages of different types are not batched together."""
+
         def test_task_usecase(message: TestTask) -> Iterable[TestTask]:
             return [message]
 
@@ -245,6 +257,7 @@ class TestProcessor:
 
     async def test_processor_actor_with_context(self, actors_registry, dependency_resolver):
         """Test processing with an actor that requires context."""
+
         def test_context(message: TestTask) -> TestContext:
             return TestContext()
 
@@ -265,6 +278,7 @@ class TestProcessor:
 
     async def test_processor_actor_with_dependencies(self, actors_registry, dependency_resolver_with_deps):
         """Test processing with an actor that requires dependencies."""
+
         def test_usecase(message: TestTask, dep: TestDependency) -> Iterable[TestTask]:
             return [message]
 
@@ -281,6 +295,7 @@ class TestProcessor:
 
     async def test_processor_actor_async(self, actors_registry, dependency_resolver):
         """Test processing with an async actor."""
+
         async def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return [message]
 
@@ -297,6 +312,7 @@ class TestProcessor:
 
     async def test_processor_actor_parameter_not_multiple_error(self, actors_registry, dependency_resolver):
         """Test that ActorParameterNotMultipleError is raised when batch has multiple messages but actor doesn't accept multiple."""
+
         def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return [message]
 
@@ -314,10 +330,11 @@ class TestProcessor:
 
     async def test_processor_multiple_actors_same_message_type(self, actors_registry, dependency_resolver):
         """Test processing with multiple actors for the same message type.
-        
+
         When multiple actors process the same batch and all return the same message type,
         each actor's result replaces the batch. The final result is from the last actor.
         """
+
         def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return [TestTask()]
 
@@ -339,6 +356,7 @@ class TestProcessor:
 
     async def test_processor_actor_returns_empty_iterable(self, actors_registry, dependency_resolver):
         """Test processing when actor returns empty iterable."""
+
         def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return []
 
@@ -355,6 +373,7 @@ class TestProcessor:
 
     async def test_processor_actor_returns_multiple_messages(self, actors_registry, dependency_resolver):
         """Test processing when actor returns multiple messages of the same type."""
+
         def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return [TestTask(), TestTask(), TestTask()]
 
@@ -371,11 +390,12 @@ class TestProcessor:
 
     async def test_processor_actor_returns_different_message_types(self, actors_registry, dependency_resolver):
         """Test processing when actor returns messages of different types.
-        
+
         When an actor returns messages of different types, they are grouped into batches by type.
         The original batch is replaced by the batch of the same type, and different-type batches
         are queued for further processing.
         """
+
         def test_usecase(message: TestTask) -> Iterable[TestTask | TestEvent]:
             return [TestTask(), TestEvent(), TestTask()]
 
@@ -398,10 +418,11 @@ class TestProcessor:
 
     async def test_processor_actor_returns_only_different_message_type(self, actors_registry, dependency_resolver):
         """Test processing when actor returns only messages of different type.
-        
+
         When an actor returns only messages of a different type than the original,
         the original batch is preserved and the different-type batch is queued.
         """
+
         def test_usecase(message: TestTask) -> Iterable[TestEvent]:
             return [TestEvent(), TestEvent()]
 
@@ -457,6 +478,7 @@ class TestProcessor:
 
     def test_processor_get_actors_for_message_type(self, actors_registry):
         """Test _get_actors_for_message_type."""
+
         def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return []
 
@@ -474,6 +496,7 @@ class TestProcessor:
 
     def test_processor_get_actors_for_message_type_excludes_context(self, actors_registry):
         """Test that _get_actors_for_message_type excludes CONTEXT actors."""
+
         def test_context(message: TestTask) -> TestContext:
             return TestContext()
 
@@ -490,6 +513,7 @@ class TestProcessor:
 
     def test_processor_get_actors_for_context_type(self, actors_registry):
         """Test _get_actors_for_context_type."""
+
         def test_context(message: TestTask) -> TestContext:
             return TestContext()
 
@@ -560,15 +584,14 @@ class TestPipeline:
         assert pipeline._dependency_container is dependency_container
         assert len(pipeline._processors) == 1
 
-
     async def test_pipeline_processes_stream(self, actors_registry, dependency_container):
         """Test that Pipeline processes messages through processors."""
         processor = Processor(actors_registry)
         pipeline = Pipeline(processor, dependency_container=dependency_container)
 
         initial_resolver_count = dependency_container._resolvers_created
-        
-        result = await self._collect_pipeline_results(pipeline, TestTask())
+
+        await self._collect_pipeline_results(pipeline, TestTask())
 
         # Check that resolver was created
         assert dependency_container._resolvers_created > initial_resolver_count
@@ -580,8 +603,8 @@ class TestPipeline:
         pipeline = Pipeline(processor1, processor2, dependency_container=dependency_container)
 
         initial_resolver_count = dependency_container._resolvers_created
-        
-        result = await self._collect_pipeline_results(pipeline, TestTask())
+
+        await self._collect_pipeline_results(pipeline, TestTask())
 
         # Should get resolver for each processor
         assert dependency_container._resolvers_created == initial_resolver_count + 2
@@ -595,6 +618,7 @@ class TestPipeline:
 
     async def test_pipeline_with_transforming_actors(self, dependency_container):
         """Test Pipeline with actors that transform messages through multiple processors."""
+
         # First processor: transforms TestTask to AnotherTask
         def transform_task_usecase(*messages: TestTask) -> Iterable[AnotherTask]:
             return [AnotherTask() for _ in messages]
@@ -614,7 +638,7 @@ class TestPipeline:
         pipeline = Pipeline(processor1, processor2, dependency_container=dependency_container)
 
         result = await self._collect_pipeline_results(pipeline, TestTask(), TestTask())
-        
+
         # Both messages should be transformed to AnotherTask and processed
         assert len(result) == 4
         assert all(isinstance(m, TestTask) for m in result[:2])
@@ -622,6 +646,7 @@ class TestPipeline:
 
     async def test_pipeline_with_multiple_message_types(self, dependency_container):
         """Test Pipeline processing different message types through processors."""
+
         # Processor 1: handles TestTask
         def handle_task_usecase(message: TestTask) -> Iterable[TestEvent]:
             return [TestEvent()]  # Transform Task to Event
@@ -641,7 +666,7 @@ class TestPipeline:
         pipeline = Pipeline(processor1, processor2, dependency_container=dependency_container)
 
         result = await self._collect_pipeline_results(pipeline, TestTask(), TestEvent())
-        
+
         # TestTask becomes TestEvent, TestEvent passes through
         assert len(result) == 3
         assert isinstance(result[0], TestTask)
@@ -664,12 +689,13 @@ class TestPipeline:
         pipeline = Pipeline(processor, dependency_container=dependency_container)
 
         result = await self._collect_pipeline_results(pipeline, TestTask())
-        
+
         assert len(result) == 1
         assert isinstance(result[0], TestTask)
 
     async def test_pipeline_with_context(self, actors_registry, dependency_container):
         """Test Pipeline with actors that require context."""
+
         def get_task_context_context(message: TestTask) -> TestContext:
             return TestContext()
 
@@ -686,12 +712,13 @@ class TestPipeline:
         pipeline = Pipeline(processor, dependency_container=dependency_container)
 
         result = await self._collect_pipeline_results(pipeline, TestTask())
-        
+
         assert len(result) == 1
         assert isinstance(result[0], TestTask)
 
     async def test_pipeline_realistic_workflow(self, dependency_container):
         """Test a realistic workflow with multiple processors and actors."""
+
         # Processor 1: Validation and transformation
         def validate_task_usecase(*messages: TestTask) -> Iterable[TestTask]:
             # Simulate validation - just pass through valid messages
@@ -722,7 +749,7 @@ class TestPipeline:
         pipeline = Pipeline(processor1, processor2, processor3, dependency_container=dependency_container)
 
         result = await self._collect_pipeline_results(pipeline, TestTask(), TestTask(), TestTask())
-        
+
         # All tasks should be validated, transformed to events, and handled
         assert len(result) == 6
         assert all(isinstance(m, TestEvent) for m in result[3:])
@@ -730,6 +757,7 @@ class TestPipeline:
 
     async def test_pipeline_with_batch_processing(self, actors_registry, dependency_container):
         """Test Pipeline with batch processing through multiple processors."""
+
         # Processor 1: Collects and processes batches
         def batch_process_task_usecase(*messages: TestTask) -> Iterable[TestTask]:
             # Process batch: return all messages
@@ -750,7 +778,7 @@ class TestPipeline:
         pipeline = Pipeline(processor1, processor2, dependency_container=dependency_container)
 
         result = await self._collect_pipeline_results(pipeline, TestTask(), TestTask(), TestTask())
-        
+
         # All messages should be batched, processed, and transformed
         assert len(result) == 6
         assert all(isinstance(m, AnotherTask) for m in result[3:])
@@ -758,6 +786,7 @@ class TestPipeline:
 
     async def test_pipeline_with_filtered_processors(self, dependency_container):
         """Test Pipeline with processors that filter messages."""
+
         # Processor 1: Only processes TestTask
         def process_task_usecase(*messages: TestTask) -> Iterable[TestTask]:
             return list(messages)
@@ -777,10 +806,9 @@ class TestPipeline:
         pipeline = Pipeline(processor1, processor2, dependency_container=dependency_container)
 
         result = await self._collect_pipeline_results(pipeline, TestTask(), TestEvent(), TestTask())
-        
+
         # TestTask messages should be processed by processor1, TestEvent by processor2
         assert len(result) == 3
         assert isinstance(result[0], TestTask)
         assert isinstance(result[1], TestTask)
         assert isinstance(result[2], TestEvent)
-

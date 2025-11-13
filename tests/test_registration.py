@@ -197,9 +197,7 @@ class TestActorsRegistry:
 
         assert len(actors_with_none) == 2
         assert len(actors_without_kind) == 2
-        assert set(actor.name for actor in actors_with_none) == set(
-            actor.name for actor in actors_without_kind
-        )
+        assert {actor.name for actor in actors_with_none} == {actor.name for actor in actors_without_kind}
 
     def test_get_with_non_existent_type(self):
         """Test getting actors for a non-existent message type."""
@@ -617,4 +615,3 @@ class TestActorsRegistry:
         actors = list(registry.get(InheritedContext, kind=ActorKind.CONTEXT))
         assert len(actors) == 1
         assert actors[0].name == "test_context"
-

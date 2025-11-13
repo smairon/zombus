@@ -223,7 +223,7 @@ class TestActor:
         actor = Actor(test_func)
         # This test documents that kind property is not implemented
         with pytest.raises(UnknownActorKindError):
-            kind = actor.kind
+            actor.kind
 
     def test_actor_with_no_parameters(self):
         """Test actor with function that has no parameters raises ActorParametersError."""

@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 from zodchy.toolbox.di import DIResolverContract
+
 from zombus.implementation.registration import ActorsRegistry
 
 
@@ -108,6 +109,7 @@ def dependency_resolver_with_deps() -> SimpleDIResolver:
         # Fallback if import fails (shouldn't happen in normal test runs)
         class TestDependency:
             """Test dependency class for testing."""
+
             pass
 
     test_dep = TestDependency()
@@ -118,4 +120,3 @@ def dependency_resolver_with_deps() -> SimpleDIResolver:
 def dependency_container() -> SimpleDIContainer:
     """Fixture for SimpleDIContainer."""
     return SimpleDIContainer()
-
