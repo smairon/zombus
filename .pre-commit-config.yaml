@@ -29,6 +29,7 @@ repos:
         pass_filenames: false
         always_run: true
         files: ^src/
+        verbose: true
       - id: pytest
         name: pytest
         entry: uv run pytest
