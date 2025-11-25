@@ -8,8 +8,8 @@ import pytest
 from zodchy.codex.cqea import Context, Event, Task
 
 from zombus.definitions import enums, errors
-from zombus.implementation.processing import Batch, Cluster, Pipeline, Processor
-from zombus.implementation.registration import ActorsRegistry
+from zombus.processing import Batch, Cluster, Pipeline, Processor
+from zombus.registration import ActorsRegistry
 
 
 # Test message classes

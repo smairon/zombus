@@ -124,7 +124,7 @@ class Processor:
         """
         data = await self._resolve_actor(batch, actor, dependency_resolver)
         if data:
-            for batch in self._collect_batches(data):
+            for batch in self._collect_batches(data if isinstance(data, collections.abc.Sequence) else [data]):
                 yield batch
 
     async def _resolve_actor(

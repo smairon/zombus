@@ -1,53 +1,11 @@
-from collections.abc import Generator, Iterable, Sequence
+from collections.abc import Callable, Coroutine, Generator, Iterable, Sequence
 from enum import Enum
-from typing import Any, Protocol, TypeAlias, overload
+from typing import Any, Protocol, TypeAlias
 
 from zodchy.codex.cqea import Context, Event, Message, Task
 
-
-class SyncActorCallableContract(Protocol):
-    @overload
-    def __call__(self, message: Message, *, context: Context, **dependencies: Any) -> Iterable[Message]:
-        ...
-
-    @overload
-    def __call__(self, message: Message, **dependencies: Any) -> Iterable[Message]:
-        ...
-
-    @overload
-    def __call__(self, *messages: Message, context: Context, **dependencies: Any) -> Iterable[Message]:
-        ...
-
-    @overload
-    def __call__(self, *messages: Message, **dependencies: Any) -> Iterable[Message]:
-        ...
-
-    def __call__(self, *messages: Message, context: Context | None = None, **dependencies: Any) -> Iterable[Message]:
-        ...
-
-
-class AsyncActorCallableContract(Protocol):
-    @overload
-    async def __call__(self, message: Message, *, context: Context, **dependencies: Any) -> Iterable[Message]:
-        ...
-
-    @overload
-    async def __call__(self, message: Message, **dependencies: Any) -> Iterable[Message]:
-        ...
-
-    @overload
-    async def __call__(self, *messages: Message, context: Context, **dependencies: Any) -> Iterable[Message]:
-        ...
-
-    @overload
-    async def __call__(self, *messages: Message, **dependencies: Any) -> Iterable[Message]:
-        ...
-
-    async def __call__(
-        self, *messages: Message, context: Context | None = None, **dependencies: Any
-    ) -> Iterable[Message]:
-        ...
-
+SyncActorCallableContract: TypeAlias = Callable[..., Iterable[Message] | Message | None]
+AsyncActorCallableContract: TypeAlias = Callable[..., Coroutine[None, None, Iterable[Message] | Message | None]]
 
 ActorCallableContract: TypeAlias = SyncActorCallableContract | AsyncActorCallableContract
 

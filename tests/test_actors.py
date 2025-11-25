@@ -12,7 +12,7 @@ from zodchy.codex.cqea import Context, Event, Task
 
 from zombus.definitions.contracts import ActorCallableContract
 from zombus.definitions.errors import ActorParametersError, UnknownActorKindError
-from zombus.implementation.internals.entities import Actor, ContextParameter, DependencyParameter, MessageParameter
+from zombus.internals.entities import Actor, ContextParameter, DependencyParameter, MessageParameter
 
 
 class TestMessage(Task):

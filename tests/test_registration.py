@@ -9,7 +9,7 @@ from zodchy.codex.cqea import Context, Event, Task
 
 from zombus.definitions.enums import ActorKind
 from zombus.definitions.errors import ActorReturnTypeError, ActorSearchTypeDerivationError
-from zombus.implementation.registration import ActorsRegistry
+from zombus.registration import ActorsRegistry
 
 
 # Test message classes
