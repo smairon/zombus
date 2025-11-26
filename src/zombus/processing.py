@@ -247,11 +247,12 @@ class Pipeline:
         self._dependency_container = dependency_container
         self._processors = list(processors)
 
-    async def __call__(self, *messages: Message) -> AsyncMessageStreamContract:
+    async def __call__(self, *messages: Message, **kwargs: Any) -> AsyncMessageStreamContract:
         """
         Process the stream through the pipeline.
         For each processor in the pipeline, process the stream with the processor.
         @param stream: The stream to process.
+        @param kwargs: Additional keyword arguments. (Not used, present for interface consistency)
         @return: The processed stream.
         """
         stream = self._make_stream(*messages)
