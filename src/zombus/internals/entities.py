@@ -93,12 +93,12 @@ class Actor:
             raise errors.UnknownActorKindError(name) from None
 
     @cached_property
-    def message_parameter(self) -> MessageParameter | None:
+    def message_parameter(self) -> MessageParameter:
         for param in self._parameters:
             if issubclass(param.annotation, Message):
                 is_multiple = param.kind == inspect.Parameter.VAR_POSITIONAL
                 return MessageParameter(param.name, param.annotation, is_multiple)
-        return None
+        raise errors.ActorParametersError(self._get_actor_name(), "message", "no value")
 
     @cached_property
     def context_parameter(self) -> ContextParameter | None:
