@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from zodchy.toolbox.di import DIResolverContract
 
-from zombus.registration import ActorsRegistry
+from zombus.registration.registry import ActorsRegistry
 
 
 # Simple real implementations for testing

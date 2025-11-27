@@ -7,7 +7,7 @@ from zombus.definitions.contracts import ActorCallableContract, ActorContract
 from zombus.definitions.enums import ActorKind
 from zombus.definitions.errors import ActorReturnTypeError, ActorSearchTypeDerivationError
 
-from .internals import Actor
+from ..internals import Actor
 
 
 class ActorsRegistry:

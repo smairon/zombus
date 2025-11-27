@@ -9,7 +9,7 @@ from zodchy.codex.cqea import Context, Event, Task
 
 from zombus.definitions import enums, errors
 from zombus.processing import Batch, Cluster, Pipeline, Processor
-from zombus.registration import ActorsRegistry
+from zombus.registration.registry import ActorsRegistry
 
 
 # Test message classes

@@ -1,3 +1,4 @@
-from . import definitions, processing, registration
+from . import definitions, processing
+from .registration import registry
 
-__all__ = ["definitions", "processing", "registration"]
+__all__ = ["definitions", "processing", "registry"]
