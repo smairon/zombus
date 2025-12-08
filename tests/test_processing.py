@@ -9,6 +9,7 @@ from zodchy.codex.cqea import Context, Event, Task
 
 from zombus.definitions import enums, errors
 from zombus.processing import Batch, Cluster, Pipeline, Processor
+from zombus.registration.entities import Actor
 from zombus.registration.registry import ActorsRegistry
 
 
@@ -199,7 +200,7 @@ class TestProcessor:
         def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return [TestTask()]
 
-        actors_registry.register(test_usecase)
+        actors_registry.register(Actor(test_usecase))
         processor = Processor(actors_registry)
 
         async def message_stream():
@@ -216,7 +217,7 @@ class TestProcessor:
         def test_usecase(*messages: TestTask) -> Iterable[TestTask]:
             return messages
 
-        actors_registry.register(test_usecase)
+        actors_registry.register(Actor(test_usecase))
         processor = Processor(actors_registry)
 
         async def message_stream():
@@ -238,8 +239,8 @@ class TestProcessor:
         def test_event_usecase(message: TestEvent) -> Iterable[TestEvent]:
             return [message]
 
-        actors_registry.register(test_task_usecase)
-        actors_registry.register(test_event_usecase)
+        actors_registry.register(Actor(test_task_usecase))
+        actors_registry.register(Actor(test_event_usecase))
         processor = Processor(actors_registry)
 
         async def message_stream():
@@ -264,8 +265,8 @@ class TestProcessor:
         def test_usecase(message: TestTask, context: TestContext) -> Iterable[TestTask]:
             return [message]
 
-        actors_registry.register(test_context)
-        actors_registry.register(test_usecase)
+        actors_registry.register(Actor(test_context))
+        actors_registry.register(Actor(test_usecase))
         processor = Processor(actors_registry)
 
         async def message_stream():
@@ -282,7 +283,7 @@ class TestProcessor:
         def test_usecase(message: TestTask, dep: TestDependency) -> Iterable[TestTask]:
             return [message]
 
-        actors_registry.register(test_usecase)
+        actors_registry.register(Actor(test_usecase))
         processor = Processor(actors_registry)
 
         async def message_stream():
@@ -299,7 +300,7 @@ class TestProcessor:
         async def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return [message]
 
-        actors_registry.register(test_usecase)
+        actors_registry.register(Actor(test_usecase))
         processor = Processor(actors_registry)
 
         async def message_stream():
@@ -316,7 +317,7 @@ class TestProcessor:
         def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return [message]
 
-        actors_registry.register(test_usecase)
+        actors_registry.register(Actor(test_usecase))
         processor = Processor(actors_registry)
 
         async def message_stream():
@@ -341,8 +342,8 @@ class TestProcessor:
         def test_auditor(message: TestTask) -> Iterable[TestTask]:
             return [TestTask()]
 
-        actors_registry.register(test_usecase)
-        actors_registry.register(test_auditor)
+        actors_registry.register(Actor(test_usecase))
+        actors_registry.register(Actor(test_auditor))
         processor = Processor(actors_registry)
 
         async def message_stream():
@@ -360,7 +361,7 @@ class TestProcessor:
         def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return []
 
-        actors_registry.register(test_usecase)
+        actors_registry.register(Actor(test_usecase))
         processor = Processor(actors_registry)
 
         async def message_stream():
@@ -377,7 +378,7 @@ class TestProcessor:
         def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return [TestTask(), TestTask(), TestTask()]
 
-        actors_registry.register(test_usecase)
+        actors_registry.register(Actor(test_usecase))
         processor = Processor(actors_registry)
 
         async def message_stream():
@@ -399,7 +400,7 @@ class TestProcessor:
         def test_usecase(message: TestTask) -> Iterable[TestTask | TestEvent]:
             return [TestTask(), TestEvent(), TestTask()]
 
-        actors_registry.register(test_usecase)
+        actors_registry.register(Actor(test_usecase))
         processor = Processor(actors_registry)
 
         async def message_stream():
@@ -426,7 +427,7 @@ class TestProcessor:
         def test_usecase(message: TestTask) -> Iterable[TestEvent]:
             return [TestEvent(), TestEvent()]
 
-        actors_registry.register(test_usecase)
+        actors_registry.register(Actor(test_usecase))
         processor = Processor(actors_registry)
 
         async def message_stream():
@@ -485,8 +486,8 @@ class TestProcessor:
         def test_auditor(message: TestTask) -> Iterable[TestTask]:
             return []
 
-        actors_registry.register(test_usecase)
-        actors_registry.register(test_auditor)
+        actors_registry.register(Actor(test_usecase))
+        actors_registry.register(Actor(test_auditor))
         processor = Processor(actors_registry)
 
         actors = list(processor._get_actors_for_message_type(TestTask))
@@ -503,8 +504,8 @@ class TestProcessor:
         def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return []
 
-        actors_registry.register(test_context)
-        actors_registry.register(test_usecase)
+        actors_registry.register(Actor(test_context))
+        actors_registry.register(Actor(test_usecase))
         processor = Processor(actors_registry)
 
         actors = list(processor._get_actors_for_message_type(TestTask))
@@ -517,7 +518,7 @@ class TestProcessor:
         def test_context(message: TestTask) -> TestContext:
             return TestContext()
 
-        actors_registry.register(test_context)
+        actors_registry.register(Actor(test_context))
         processor = Processor(actors_registry)
 
         actors = list(processor._get_actors_for_context_type(TestContext))
@@ -624,7 +625,7 @@ class TestPipeline:
             return [AnotherTask() for _ in messages]
 
         registry1 = ActorsRegistry()
-        registry1.register(transform_task_usecase)
+        registry1.register(Actor(transform_task_usecase))
         processor1 = Processor(registry1)
 
         # Second processor: processes AnotherTask
@@ -632,7 +633,7 @@ class TestPipeline:
             return list(messages)  # Just pass through
 
         registry2 = ActorsRegistry()
-        registry2.register(process_another_task_usecase)
+        registry2.register(Actor(process_another_task_usecase))
         processor2 = Processor(registry2)
 
         pipeline = Pipeline(processor1, processor2, dependency_container=dependency_container)
@@ -652,7 +653,7 @@ class TestPipeline:
             return [TestEvent()]  # Transform Task to Event
 
         registry1 = ActorsRegistry()
-        registry1.register(handle_task_usecase)
+        registry1.register(Actor(handle_task_usecase))
         processor1 = Processor(registry1)
 
         # Processor 2: handles TestEvent
@@ -660,7 +661,7 @@ class TestPipeline:
             return list(messages)  # Pass through
 
         registry2 = ActorsRegistry()
-        registry2.register(handle_event_usecase)
+        registry2.register(Actor(handle_event_usecase))
         processor2 = Processor(registry2)
 
         pipeline = Pipeline(processor1, processor2, dependency_container=dependency_container)
@@ -683,7 +684,7 @@ class TestPipeline:
             return [message]
 
         registry = ActorsRegistry()
-        registry.register(process_task_with_dep_usecase)
+        registry.register(Actor(process_task_with_dep_usecase))
         processor = Processor(registry)
 
         pipeline = Pipeline(processor, dependency_container=dependency_container)
@@ -705,8 +706,8 @@ class TestPipeline:
             return [message]
 
         registry = ActorsRegistry()
-        registry.register(get_task_context_context)
-        registry.register(process_task_with_context_usecase)
+        registry.register(Actor(get_task_context_context))
+        registry.register(Actor(process_task_with_context_usecase))
         processor = Processor(registry)
 
         pipeline = Pipeline(processor, dependency_container=dependency_container)
@@ -725,7 +726,7 @@ class TestPipeline:
             return list(messages)
 
         registry1 = ActorsRegistry()
-        registry1.register(validate_task_usecase)
+        registry1.register(Actor(validate_task_usecase))
         processor1 = Processor(registry1)
 
         # Processor 2: Business logic - transform Task to Event
@@ -734,7 +735,7 @@ class TestPipeline:
             return [TestEvent() for _ in messages]
 
         registry2 = ActorsRegistry()
-        registry2.register(process_task_to_event_usecase)
+        registry2.register(Actor(process_task_to_event_usecase))
         processor2 = Processor(registry2)
 
         # Processor 3: Event handling
@@ -743,7 +744,7 @@ class TestPipeline:
             return list(messages)
 
         registry3 = ActorsRegistry()
-        registry3.register(handle_event_usecase)
+        registry3.register(Actor(handle_event_usecase))
         processor3 = Processor(registry3)
 
         pipeline = Pipeline(processor1, processor2, processor3, dependency_container=dependency_container)
@@ -764,7 +765,7 @@ class TestPipeline:
             return list(messages)
 
         registry1 = ActorsRegistry()
-        registry1.register(batch_process_task_usecase)
+        registry1.register(Actor(batch_process_task_usecase))
         processor1 = Processor(registry1)
 
         # Processor 2: Transform each message
@@ -772,7 +773,7 @@ class TestPipeline:
             return [AnotherTask() for _ in messages]
 
         registry2 = ActorsRegistry()
-        registry2.register(transform_task_to_another_usecase)
+        registry2.register(Actor(transform_task_to_another_usecase))
         processor2 = Processor(registry2)
 
         pipeline = Pipeline(processor1, processor2, dependency_container=dependency_container)
@@ -792,7 +793,7 @@ class TestPipeline:
             return list(messages)
 
         registry1 = ActorsRegistry()
-        registry1.register(process_task_usecase)
+        registry1.register(Actor(process_task_usecase))
         processor1 = Processor(registry1, stream_filter=lambda m: isinstance(m, TestTask))
 
         # Processor 2: Only processes TestEvent
@@ -800,7 +801,7 @@ class TestPipeline:
             return [message]
 
         registry2 = ActorsRegistry()
-        registry2.register(process_event_usecase)
+        registry2.register(Actor(process_event_usecase))
         processor2 = Processor(registry2, stream_filter=lambda m: isinstance(m, TestEvent))
 
         pipeline = Pipeline(processor1, processor2, dependency_container=dependency_container)
@@ -812,3 +813,153 @@ class TestPipeline:
         assert isinstance(result[0], TestTask)
         assert isinstance(result[1], TestTask)
         assert isinstance(result[2], TestEvent)
+
+
+class TestProcessorCoverage:
+    """Additional tests to increase coverage of processing module."""
+
+    async def _collect_processor_results(self, processor: Processor, stream, dependency_resolver) -> list:
+        """Helper method to collect results from processor."""
+        result: list = []
+        async for message in processor(stream, dependency_resolver):
+            result.append(message)
+        return result
+
+    def test_get_actors_for_message_type_with_priority_containing_context(
+        self, actors_registry: ActorsRegistry
+    ) -> None:
+        """Test _get_actors_for_message_type when actors_priority contains CONTEXT.
+
+        The CONTEXT kind should be skipped even if present in the priority list.
+        This covers lines 179-183 in processing.py.
+        """
+
+        def test_context(message: TestTask) -> TestContext:
+            return TestContext()
+
+        def test_usecase(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def test_auditor(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        actors_registry.register(Actor(test_context))
+        actors_registry.register(Actor(test_usecase))
+        actors_registry.register(Actor(test_auditor))
+
+        # Include CONTEXT in priority list - it should be skipped
+        priority = [enums.ActorKind.CONTEXT, enums.ActorKind.USECASE, enums.ActorKind.AUDITOR]
+        processor = Processor(actors_registry, actors_priority=priority)
+
+        actors = list(processor._get_actors_for_message_type(TestTask))
+        # Should only get usecase and auditor, not context
+        assert len(actors) == 2
+        actor_kinds = {actor.kind for actor in actors}
+        assert enums.ActorKind.CONTEXT not in actor_kinds
+        assert enums.ActorKind.USECASE in actor_kinds
+        assert enums.ActorKind.AUDITOR in actor_kinds
+
+    def test_collect_batches_with_stream_filter_multiple_messages(self, actors_registry: ActorsRegistry) -> None:
+        """Test _collect_batches with stream_filter filtering out some messages.
+
+        When there are multiple messages and stream_filter is set, only matching
+        messages should be included in batches.
+        This covers line 210 in processing.py.
+        """
+        filter_func = lambda m: isinstance(m, TestTask)
+        processor = Processor(actors_registry, stream_filter=filter_func)
+
+        # Multiple messages, some filtered out
+        message1 = TestTask()
+        message2 = TestEvent()  # Should be filtered out
+        message3 = TestTask()
+        message4 = TestEvent()  # Should be filtered out
+
+        batches = list(processor._collect_batches([message1, message2, message3, message4]))
+
+        # Only TestTask messages should be in batches
+        assert len(batches) == 1
+        assert batches[0].message_type is TestTask
+        assert len(batches[0]) == 2
+        messages_in_batch = list(batches[0])
+        assert message1 in messages_in_batch
+        assert message3 in messages_in_batch
+        assert message2 not in messages_in_batch
+        assert message4 not in messages_in_batch
+
+    def test_collect_batches_with_stream_filter_all_filtered_multiple(self, actors_registry: ActorsRegistry) -> None:
+        """Test _collect_batches when stream_filter filters all multiple messages.
+
+        When all messages are filtered out, no batches should be yielded.
+        """
+        filter_func = lambda m: isinstance(m, TestTask)
+        processor = Processor(actors_registry, stream_filter=filter_func)
+
+        # All messages filtered out
+        message1 = TestEvent()
+        message2 = TestEvent()
+
+        batches = list(processor._collect_batches([message1, message2]))
+
+        # No batches since all messages were filtered
+        assert len(batches) == 0
+
+    async def test_process_batch_queue_with_empty_batch_from_actor(
+        self, actors_registry: ActorsRegistry, dependency_resolver
+    ) -> None:
+        """Test _process_batch when actor produces empty result that gets queued.
+
+        This tests the case where an empty batch (message_type is None) is in the queue.
+        Covers lines 80-81 in processing.py.
+        """
+
+        # Actor that returns messages of different types - some empty batches may be queued
+        def test_usecase(message: TestTask) -> Iterable[TestEvent]:
+            # Returns only TestEvent, not TestTask
+            # Original TestTask batch will remain, TestEvent batch will be queued
+            return [TestEvent()]
+
+        # Another actor that returns empty
+        def test_event_usecase(message: TestEvent) -> Iterable:
+            return []
+
+        actors_registry.register(Actor(test_usecase))
+        actors_registry.register(Actor(test_event_usecase))
+        processor = Processor(actors_registry)
+
+        async def message_stream():
+            yield TestTask()
+
+        result = await self._collect_processor_results(processor, message_stream(), dependency_resolver)
+        # TestTask is preserved (no TestTask returned from actor)
+        # TestEvent is queued, processed by test_event_usecase which returns empty
+        assert len(result) == 2
+        assert any(isinstance(m, TestTask) for m in result)
+        assert any(isinstance(m, TestEvent) for m in result)
+
+    async def test_process_batch_queues_different_type_result(
+        self, actors_registry: ActorsRegistry, dependency_resolver
+    ) -> None:
+        """Test _process_batch when actor returns batch of different message type.
+
+        This verifies the queue.append(result) path (line 87) when result has
+        a different message type than the current batch.
+        """
+
+        def test_usecase(message: TestTask) -> Iterable[TestEvent]:
+            return [TestEvent(), TestEvent()]
+
+        actors_registry.register(Actor(test_usecase))
+        processor = Processor(actors_registry)
+
+        async def message_stream():
+            yield TestTask()
+
+        result = await self._collect_processor_results(processor, message_stream(), dependency_resolver)
+        # Original TestTask preserved (no same-type result)
+        # TestEvent batch (2 messages) queued and yielded
+        assert len(result) == 3
+        task_count = sum(1 for m in result if isinstance(m, TestTask))
+        event_count = sum(1 for m in result if isinstance(m, TestEvent))
+        assert task_count == 1
+        assert event_count == 2

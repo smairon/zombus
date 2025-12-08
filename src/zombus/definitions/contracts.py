@@ -37,6 +37,9 @@ class ActorContract(Protocol):
     context_parameter: ContextParameter | None
     dependency_parameters: Sequence[DependencyParameter] | None
 
+    def __init__(self, actor_callable: ActorCallableContract) -> None:
+        ...
+
 
 class ActorsRegistryContract(Protocol):
     def register(self, actor_callable: ActorCallableContract) -> None:

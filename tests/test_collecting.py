@@ -10,8 +10,10 @@ from types import ModuleType
 
 import pytest
 from _pytest.capture import CaptureFixture
-from zodchy.codex.cqea import Event, Task
+from zodchy.codex.cqea import Context, Event, Task
 
+from zombus.definitions.enums import ActorKind
+from zombus.registration.entities import Actor
 from zombus.registration.collecting import ActorsCollector
 from zombus.registration.registry import ActorsRegistry
 
@@ -29,15 +31,20 @@ class TestEvent(Event):
     pass
 
 
+class TestContext(Context):
+    """Test context class for testing."""
+
+    pass
+
+
 class TestActorsCollector:
     """Test class for ActorsCollector functionality."""
 
     def test_initialization(self) -> None:
-        """Test that ActorsCollector can be initialized with registry."""
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        """Test that ActorsCollector can be initialized with actor factory."""
+        collector = ActorsCollector()
 
-        assert collector._registry is registry
+        assert collector._actors == []
         assert "__pycache__" in collector._ignore_list
         assert ".pytest_cache" in collector._ignore_list
         assert ".git" in collector._ignore_list
@@ -45,23 +52,23 @@ class TestActorsCollector:
         assert "env" in collector._ignore_list
 
     def test_get_registry(self) -> None:
-        """Test that get_registry returns the underlying registry."""
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        """Test that get_registry returns a registry."""
+        collector = ActorsCollector()
 
-        assert collector.get_registry() is registry
+        registry = collector.get_registry()
+        assert isinstance(registry, ActorsRegistry)
 
     def test_register_actor_directly(self) -> None:
-        """Test registering an actor directly via register_actor method."""
+        """Test registering an actor directly via register_callable method."""
 
         def test_usecase(message: TestTask) -> Iterable[TestTask]:
             return []
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
 
-        collector.register_actor(test_usecase)
+        collector.register_callable(test_usecase)
 
+        registry = collector.get_registry()
         actors = list(registry.get(TestTask))
         assert len(actors) == 1
         assert actors[0].name == "test_usecase"
@@ -75,12 +82,12 @@ class TestActorsCollector:
         def second_usecase(message: TestEvent) -> Iterable[TestEvent]:
             return []
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
 
-        collector.register_actor(first_usecase)
-        collector.register_actor(second_usecase)
+        collector.register_callable(first_usecase)
+        collector.register_callable(second_usecase)
 
+        registry = collector.get_registry()
         task_actors = list(registry.get(TestTask))
         event_actors = list(registry.get(TestEvent))
 
@@ -88,6 +95,209 @@ class TestActorsCollector:
         assert len(event_actors) == 1
         assert task_actors[0].name == "first_usecase"
         assert event_actors[0].name == "second_usecase"
+
+    def test_get_registry_with_include_filter(self) -> None:
+        """Test get_registry with include filter returns only specified actor kinds."""
+
+        def task_usecase(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_auditor(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_writer(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        collector = ActorsCollector()
+        collector.register_callable(task_usecase)
+        collector.register_callable(task_auditor)
+        collector.register_callable(task_writer)
+
+        # Get registry with only USECASE actors
+        registry = collector.get_registry(include={ActorKind.USECASE})
+        actors = list(registry)
+        assert len(actors) == 1
+        assert actors[0].name == "task_usecase"
+        assert actors[0].kind == ActorKind.USECASE
+
+    def test_get_registry_with_exclude_filter(self) -> None:
+        """Test get_registry with exclude filter excludes specified actor kinds."""
+
+        def task_usecase(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_auditor(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_writer(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        collector = ActorsCollector()
+        collector.register_callable(task_usecase)
+        collector.register_callable(task_auditor)
+        collector.register_callable(task_writer)
+
+        # Get registry excluding AUDITOR actors
+        registry = collector.get_registry(exclude={ActorKind.AUDITOR})
+        actors = list(registry)
+        assert len(actors) == 2
+        actor_names = {a.name for a in actors}
+        assert "task_usecase" in actor_names
+        assert "task_writer" in actor_names
+        assert "task_auditor" not in actor_names
+
+    def test_get_registry_with_include_multiple_kinds(self) -> None:
+        """Test get_registry with include filter for multiple actor kinds."""
+
+        def task_usecase(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_auditor(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_writer(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_reader(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        collector = ActorsCollector()
+        collector.register_callable(task_usecase)
+        collector.register_callable(task_auditor)
+        collector.register_callable(task_writer)
+        collector.register_callable(task_reader)
+
+        # Get registry with USECASE and WRITER actors
+        registry = collector.get_registry(include={ActorKind.USECASE, ActorKind.WRITER})
+        actors = list(registry)
+        assert len(actors) == 2
+        actor_names = {a.name for a in actors}
+        assert "task_usecase" in actor_names
+        assert "task_writer" in actor_names
+
+    def test_get_registry_with_exclude_multiple_kinds(self) -> None:
+        """Test get_registry with exclude filter for multiple actor kinds."""
+
+        def task_usecase(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_auditor(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_writer(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_reader(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        collector = ActorsCollector()
+        collector.register_callable(task_usecase)
+        collector.register_callable(task_auditor)
+        collector.register_callable(task_writer)
+        collector.register_callable(task_reader)
+
+        # Get registry excluding AUDITOR and READER actors
+        registry = collector.get_registry(exclude={ActorKind.AUDITOR, ActorKind.READER})
+        actors = list(registry)
+        assert len(actors) == 2
+        actor_names = {a.name for a in actors}
+        assert "task_usecase" in actor_names
+        assert "task_writer" in actor_names
+
+    def test_get_registry_with_include_and_exclude(self) -> None:
+        """Test get_registry with both include and exclude filters (exclude takes precedence)."""
+
+        def task_usecase(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_auditor(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_writer(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        collector = ActorsCollector()
+        collector.register_callable(task_usecase)
+        collector.register_callable(task_auditor)
+        collector.register_callable(task_writer)
+
+        # Include USECASE and AUDITOR, but exclude AUDITOR - should only get USECASE
+        registry = collector.get_registry(include={ActorKind.USECASE, ActorKind.AUDITOR}, exclude={ActorKind.AUDITOR})
+        actors = list(registry)
+        assert len(actors) == 1
+        assert actors[0].name == "task_usecase"
+
+    def test_get_registry_with_context_actors(self) -> None:
+        """Test get_registry filtering with CONTEXT actor kind."""
+
+        def task_usecase(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_context(message: TestTask) -> TestContext:
+            return TestContext()
+
+        collector = ActorsCollector()
+        collector.register_callable(task_usecase)
+        collector.register_callable(task_context)
+
+        # Get registry with only CONTEXT actors
+        registry = collector.get_registry(include={ActorKind.CONTEXT})
+        actors = list(registry)
+        assert len(actors) == 1
+        assert actors[0].name == "task_context"
+        assert actors[0].kind == ActorKind.CONTEXT
+
+    def test_get_registry_exclude_context_actors(self) -> None:
+        """Test get_registry excluding CONTEXT actor kind."""
+
+        def task_usecase(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_context(message: TestTask) -> TestContext:
+            return TestContext()
+
+        collector = ActorsCollector()
+        collector.register_callable(task_usecase)
+        collector.register_callable(task_context)
+
+        # Get registry excluding CONTEXT actors
+        registry = collector.get_registry(exclude={ActorKind.CONTEXT})
+        actors = list(registry)
+        assert len(actors) == 1
+        assert actors[0].name == "task_usecase"
+        assert actors[0].kind == ActorKind.USECASE
+
+    def test_get_registry_include_empty_result(self) -> None:
+        """Test get_registry with include filter that matches no actors."""
+
+        def task_usecase(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        collector = ActorsCollector()
+        collector.register_callable(task_usecase)
+
+        # Get registry with AUDITOR kind (no auditors registered)
+        registry = collector.get_registry(include={ActorKind.AUDITOR})
+        actors = list(registry)
+        assert len(actors) == 0
+
+    def test_get_registry_exclude_all(self) -> None:
+        """Test get_registry with exclude filter that excludes all actors."""
+
+        def task_usecase(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        def task_auditor(message: TestTask) -> Iterable[TestTask]:
+            return []
+
+        collector = ActorsCollector()
+        collector.register_callable(task_usecase)
+        collector.register_callable(task_auditor)
+
+        # Exclude all registered actor kinds
+        registry = collector.get_registry(exclude={ActorKind.USECASE, ActorKind.AUDITOR})
+        actors = list(registry)
+        assert len(actors) == 0
 
 
 class TestActorsCollectorModuleRegistration:
@@ -162,11 +372,11 @@ def simple_usecase(message: SimpleTask) -> Iterable[SimpleTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
         # Get all registered actors
+        registry = collector.get_registry()
         all_actors = list(registry)
         # Should have at least one actor (simple_usecase)
         usecase_actors = [a for a in all_actors if a.name == "simple_usecase"]
@@ -200,10 +410,10 @@ def _private_function(message: MultiTask) -> Iterable[MultiTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -234,10 +444,10 @@ def __dunder_like(message: PrivateTask) -> Iterable[PrivateTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -276,10 +486,10 @@ def sub_usecase(message: SubEvent) -> Iterable[SubEvent]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -312,10 +522,10 @@ def cache_usecase(message: CacheTask) -> Iterable[CacheTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -358,10 +568,10 @@ def hidden_usecase(message: HiddenTask2) -> Iterable[HiddenTask2]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -400,10 +610,10 @@ def private_mod_usecase(message: PrivateModTask) -> Iterable[PrivateModTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -450,10 +660,10 @@ def venv_fake_usecase(message: FakeVenvTask) -> Iterable[FakeVenvTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -489,8 +699,7 @@ def valid_usecase(message: ValidTask) -> Iterable[ValidTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
         # Check that warning was printed
@@ -498,6 +707,7 @@ def valid_usecase(message: ValidTask) -> Iterable[ValidTask]:
         assert "Warning: Could not import module" in captured.out
 
         # Valid module should still be registered
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
         assert "valid_usecase" in actor_names
@@ -508,11 +718,11 @@ def valid_usecase(message: ValidTask) -> Iterable[ValidTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
         # Should not raise and registry should be empty
+        registry = collector.get_registry()
         all_actors = list(registry)
         assert len(all_actors) == 0
 
@@ -526,8 +736,7 @@ def valid_usecase(message: ValidTask) -> Iterable[ValidTask]:
         # Ensure __path__ is empty
         fake_module.__path__ = []
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
 
         with pytest.raises(ValueError) as exc_info:
             collector.register_module(fake_module)
@@ -564,12 +773,12 @@ def _private_func(message: FileTask) -> Iterable[FileTask]:
         assert spec.loader is not None
         spec.loader.exec_module(module)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
 
         # Single-file modules should now work correctly
         collector.register_module(module)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -600,10 +809,10 @@ def init_usecase(message: InitTask) -> Iterable[InitTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
         assert "init_usecase" in actor_names
@@ -644,10 +853,10 @@ reexported = imported_usecase
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -702,10 +911,10 @@ def level3_usecase(message: Level3Task) -> Iterable[Level3Task]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -753,10 +962,10 @@ def env_fake_usecase(message: FakeEnvTask) -> Iterable[FakeEnvTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -789,10 +998,10 @@ def pytest_test_usecase(message: PytestTask) -> Iterable[PytestTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -823,10 +1032,10 @@ def git_test_usecase(message: GitTask) -> Iterable[GitTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -855,10 +1064,10 @@ def function_usecase(message: ClassTask) -> Iterable[ClassTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -888,10 +1097,10 @@ def sync_usecase(message: AsyncTask) -> Iterable[AsyncTask]:
 
         package = importlib.import_module(self.package_name)
 
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
 
@@ -927,10 +1136,10 @@ def string_path_usecase(message: StringPathTask) -> Iterable[StringPathTask]:
         package = importlib.import_module(self.package_name)
 
         # Test that normal __path__ (list) works correctly
-        registry = ActorsRegistry()
-        collector = ActorsCollector(registry)
+        collector = ActorsCollector()
         collector.register_module(package)
 
+        registry = collector.get_registry()
         all_actors = list(registry)
         actor_names = {a.name for a in all_actors}
         assert "string_path_usecase" in actor_names

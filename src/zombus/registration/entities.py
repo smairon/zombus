@@ -27,13 +27,17 @@ class Batch:
         yield from self._messages
 
     def _derive_common_type(self) -> type[Message] | None:
+        if len(self._messages) == 0:
+            return None
         if len(self._messages) == 1:
             return type(self._messages[0])
         mros = [type(obj).mro() for obj in self._messages]
         for cls in mros[0]:
             if all(cls in mro for mro in mros[1:]):
                 return cls
-        return None
+        # All Message subclasses share Message in their MRO, so this is unreachable
+        # for valid Message objects. Included for type checker satisfaction.
+        return None  # pragma: no cover
 
 
 class MessageParameter:
@@ -98,7 +102,8 @@ class Actor:
             if issubclass(param.annotation, Message):
                 is_multiple = param.kind == inspect.Parameter.VAR_POSITIONAL
                 return MessageParameter(param.name, param.annotation, is_multiple)
-        raise errors.ActorParametersError(self._get_actor_name(), "message", "no value")
+        # Unreachable: _parameters already validates that a message parameter exists
+        raise errors.ActorParametersError(self._get_actor_name(), "message", "no value")  # pragma: no cover
 
     @cached_property
     def context_parameter(self) -> ContextParameter | None:

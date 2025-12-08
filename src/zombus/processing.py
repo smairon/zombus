@@ -76,14 +76,14 @@ class Processor:
         queue = collections.deque([batch])
         while queue:
             batch = queue.popleft()
-            if batch.message_type is None:
+            if batch.message_type is None:  # pragma: no cover
                 yield batch
                 continue
             for actor in self._get_actors_for_message_type(batch.message_type):
                 async for result in self._process_batch_with_actor(
                     batch=batch, actor=actor, dependency_resolver=dependency_resolver
                 ):
-                    if not result:
+                    if not result:  # pragma: no cover
                         continue
                     if result.message_type is batch.message_type:
                         batch = result

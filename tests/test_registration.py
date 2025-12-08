@@ -9,6 +9,7 @@ from zodchy.codex.cqea import Context, Event, Task
 
 from zombus.definitions.enums import ActorKind
 from zombus.definitions.errors import ActorReturnTypeError, ActorSearchTypeDerivationError
+from zombus.registration.entities import Actor
 from zombus.registration.registry import ActorsRegistry
 
 
@@ -64,7 +65,7 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
+        registry.register(Actor(test_usecase))
 
         assert TestTask in registry._registry
         assert len(registry._registry[TestTask]) == 1
@@ -86,9 +87,9 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
-        registry.register(test_auditor)
-        registry.register(test_writer)
+        registry.register(Actor(test_usecase))
+        registry.register(Actor(test_auditor))
+        registry.register(Actor(test_writer))
 
         assert TestTask in registry._registry
         assert len(registry._registry[TestTask]) == 3
@@ -109,8 +110,8 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_task_usecase)
-        registry.register(test_event_usecase)
+        registry.register(Actor(test_task_usecase))
+        registry.register(Actor(test_event_usecase))
 
         assert TestTask in registry._registry
         assert TestEvent in registry._registry
@@ -127,8 +128,8 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
-        registry.register(test_auditor)
+        registry.register(Actor(test_usecase))
+        registry.register(Actor(test_auditor))
 
         actors = list(registry.get(TestTask))
         assert len(actors) == 2
@@ -148,9 +149,9 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
-        registry.register(test_auditor)
-        registry.register(test_writer)
+        registry.register(Actor(test_usecase))
+        registry.register(Actor(test_auditor))
+        registry.register(Actor(test_writer))
 
         actors = list(registry.get(TestTask, kind=ActorKind.USECASE))
         assert len(actors) == 1
@@ -172,8 +173,8 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test1_usecase)
-        registry.register(test2_usecase)
+        registry.register(Actor(test1_usecase))
+        registry.register(Actor(test2_usecase))
 
         actors = list(registry.get(TestTask, kind=ActorKind.USECASE))
         assert len(actors) == 2
@@ -189,8 +190,8 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
-        registry.register(test_auditor)
+        registry.register(Actor(test_usecase))
+        registry.register(Actor(test_auditor))
 
         actors_with_none = list(registry.get(TestTask, kind=None))
         actors_without_kind = list(registry.get(TestTask))
@@ -206,7 +207,7 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
+        registry.register(Actor(test_usecase))
 
         actors = list(registry.get(TestEvent))
         assert len(actors) == 0
@@ -218,7 +219,7 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
+        registry.register(Actor(test_usecase))
 
         # Should find actors registered for parent class
         actors = list(registry.get(InheritedTask))
@@ -232,7 +233,7 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
+        registry.register(Actor(test_usecase))
 
         # Should find actors for exact type
         actors = list(registry.get(InheritedTask))
@@ -249,8 +250,8 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(parent_usecase)
-        registry.register(child_usecase)
+        registry.register(Actor(parent_usecase))
+        registry.register(Actor(child_usecase))
 
         # Should find both actors
         actors = list(registry.get(InheritedTask))
@@ -268,8 +269,8 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
-        registry.register(test_auditor)
+        registry.register(Actor(test_usecase))
+        registry.register(Actor(test_auditor))
 
         # __get__ returns a list of actors or None
         actors = registry.__get__(TestTask)
@@ -297,9 +298,9 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_task_usecase)
-        registry.register(test_event_usecase)
-        registry.register(test_task_auditor)
+        registry.register(Actor(test_task_usecase))
+        registry.register(Actor(test_event_usecase))
+        registry.register(Actor(test_task_auditor))
 
         all_actors = list(registry)
         assert len(all_actors) == 3
@@ -333,11 +334,11 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_context)
-        registry.register(test_usecase)
-        registry.register(test_auditor)
-        registry.register(test_writer)
-        registry.register(test_reader)
+        registry.register(Actor(test_context))
+        registry.register(Actor(test_usecase))
+        registry.register(Actor(test_auditor))
+        registry.register(Actor(test_writer))
+        registry.register(Actor(test_reader))
 
         # CONTEXT actors are registered under their return type (Context), not message parameter type
         assert TestContext in registry._registry
@@ -360,7 +361,7 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
+        registry.register(Actor(test_usecase))
 
         # Should find the actor for Task
         actors = list(registry.get(TestTask))
@@ -379,7 +380,7 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
+        registry.register(Actor(test_usecase))
 
         # Should find the actor for Event
         actors = list(registry.get(TestEvent))
@@ -413,9 +414,9 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(base_usecase)
-        registry.register(middle_usecase)
-        registry.register(final_usecase)
+        registry.register(Actor(base_usecase))
+        registry.register(Actor(middle_usecase))
+        registry.register(Actor(final_usecase))
 
         # Should find all three actors for FinalTask
         actors = list(registry.get(FinalTask))
@@ -444,8 +445,8 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_task_usecase)
-        registry.register(test_event_usecase)
+        registry.register(Actor(test_task_usecase))
+        registry.register(Actor(test_event_usecase))
 
         # Task actors should not appear for Event queries
         task_actors = list(registry.get(TestTask))
@@ -464,7 +465,7 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
+        registry.register(Actor(test_usecase))
 
         assert TestTask in registry._registry
         assert len(registry._registry[TestTask]) == 1
@@ -479,7 +480,7 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
+        registry.register(Actor(test_usecase))
 
         assert TestTask in registry._registry
         assert len(registry._registry[TestTask]) == 1
@@ -494,7 +495,7 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_usecase)
+        registry.register(Actor(test_usecase))
 
         actors = list(registry.get(TestTask, kind=ActorKind.AUDITOR))
         assert len(actors) == 0
@@ -518,11 +519,11 @@ class TestActorsRegistry:
             return []
 
         registry = ActorsRegistry()
-        registry.register(test_task_usecase)
-        registry.register(test_task_auditor)
-        registry.register(test_event_usecase)
-        registry.register(test_event_writer)
-        registry.register(another_task_usecase)
+        registry.register(Actor(test_task_usecase))
+        registry.register(Actor(test_task_auditor))
+        registry.register(Actor(test_event_usecase))
+        registry.register(Actor(test_event_writer))
+        registry.register(Actor(another_task_usecase))
 
         # Test retrieval for each type
         test_task_actors = list(registry.get(TestTask))
@@ -554,7 +555,7 @@ class TestActorsRegistry:
             return TestContext()
 
         registry = ActorsRegistry()
-        registry.register(test_context)
+        registry.register(Actor(test_context))
 
         # CONTEXT actors are registered under their return type (Context), not message parameter type
         assert TestContext in registry._registry
@@ -580,7 +581,7 @@ class TestActorsRegistry:
         registry = ActorsRegistry()
 
         with pytest.raises(ActorReturnTypeError) as exc_info:
-            registry.register(test_context)
+            registry.register(Actor(test_context))
         assert exc_info.value.actor_name == "test_context"
 
     def test_context_actor_with_non_context_return_type_raises_error(self):
@@ -592,7 +593,7 @@ class TestActorsRegistry:
         registry = ActorsRegistry()
 
         with pytest.raises(ActorSearchTypeDerivationError) as exc_info:
-            registry.register(test_context)
+            registry.register(Actor(test_context))
         assert exc_info.value.actor_name == "test_context"
 
     def test_context_actor_with_inherited_context(self):
@@ -605,7 +606,7 @@ class TestActorsRegistry:
             return TestContext()
 
         registry = ActorsRegistry()
-        registry.register(test_context)
+        registry.register(Actor(test_context))
 
         # Should be registered under InheritedContext
         assert TestContext in registry._registry

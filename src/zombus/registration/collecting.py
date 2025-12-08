@@ -3,12 +3,16 @@ import inspect
 import os
 from types import ModuleType
 
-from ..definitions.contracts import ActorCallableContract, ActorsRegistryContract
+from zombus.definitions.contracts import ActorCallableContract
+from zombus.definitions.enums import ActorKind
+from zombus.registration.entities import Actor
+
+from .registry import ActorsRegistry
 
 
 class ActorsCollector:
-    def __init__(self, registry: ActorsRegistryContract):
-        self._registry = registry
+    def __init__(self) -> None:
+        self._actors: list[Actor] = []
         self._ignore_list = ["__pycache__", ".pytest_cache", ".git", "venv", "env"]
 
     def register_module(self, package: ModuleType) -> None:
@@ -31,19 +35,28 @@ class ActorsCollector:
         else:
             raise ValueError(f"Module {package.__name__} has no __path__ or __file__ attribute")
 
-    def register_actor(self, callable_obj: ActorCallableContract) -> None:
+    def register_callable(self, actor_callable: ActorCallableContract) -> None:
         """
         registers a callable object in the registry
         @param callable_obj: The callable object to register
         """
-        self._registry.register(callable_obj)
+        self._actors.append(Actor(actor_callable))
 
-    def get_registry(self) -> ActorsRegistryContract:
+    def get_registry(
+        self, include: set[ActorKind] | None = None, exclude: set[ActorKind] | None = None
+    ) -> ActorsRegistry:
         """
         returns the underlying actors registry
         @return: The actors registry
         """
-        return self._registry
+        registry = ActorsRegistry()
+        for actor in self._actors:
+            if exclude and actor.kind in exclude:
+                continue
+            if include and actor.kind not in include:
+                continue
+            registry.register(actor)
+        return registry
 
     def _walk_filesystem(self, dir_path: str, package_name: str) -> None:
         """
@@ -99,4 +112,4 @@ class ActorsCollector:
                 and hasattr(obj, "__module__")
                 and obj.__module__ == module_name
             ):
-                self._registry.register(obj)
+                self._actors.append(Actor(obj))
