@@ -5,7 +5,9 @@ from zodchy.codex.cqea import Context, Message
 from zodchy.toolbox.di import DIContainerContract, DIResolverContract
 from zodchy.toolbox.processing import AsyncMessageStreamContract, AsyncProcessorContract
 
-from zombus.definitions import contracts, enums, errors
+from zombus.definitions import enums, errors
+from zombus.registration.entities import Actor
+from zombus.registration.registry import ActorsRegistry
 
 
 class Batch:
@@ -29,7 +31,7 @@ class Batch:
 class Processor:
     def __init__(
         self,
-        actors_registry: contracts.ActorsRegistryContract,
+        actors_registry: ActorsRegistry,
         stream_filter: collections.abc.Callable[[Message], bool] | None = None,
         actors_priority: collections.abc.Sequence[enums.ActorKind] | None = None,
     ):
@@ -112,7 +114,7 @@ class Processor:
         yield current_batch
 
     async def _process_batch_with_actor(
-        self, batch: Batch, actor: contracts.ActorContract, dependency_resolver: DIResolverContract
+        self, batch: Batch, actor: Actor, dependency_resolver: DIResolverContract
     ) -> collections.abc.AsyncGenerator[Batch, None]:
         """
         Process a batch with an actor.
@@ -127,9 +129,7 @@ class Processor:
             for batch in self._collect_batches(data if isinstance(data, collections.abc.Sequence) else [data]):
                 yield batch
 
-    async def _resolve_actor(
-        self, batch: Batch, actor: contracts.ActorContract, dependency_resolver: DIResolverContract
-    ) -> Any | None:
+    async def _resolve_actor(self, batch: Batch, actor: Actor, dependency_resolver: DIResolverContract) -> Any | None:
         """
         Resolve the actor.
         If the actor has a context parameter, resolve the context actor and add the context to the parameters.
@@ -162,9 +162,7 @@ class Processor:
             result = actor.callable(*batch, **params)
         return result
 
-    def _get_actors_for_message_type(
-        self, message_type: type[Message]
-    ) -> collections.abc.Generator[contracts.ActorContract, None, None]:
+    def _get_actors_for_message_type(self, message_type: type[Message]) -> collections.abc.Generator[Actor, None, None]:
         """
         Get the actors for a message type.
         If priority is set, get the actors in the priority order, otherwise get all actors for the message type.
@@ -182,9 +180,7 @@ class Processor:
                 for actor in self._actors_registry.get(message_type, kind=actor_kind):
                     yield actor
 
-    def _get_actors_for_context_type(
-        self, context_type: type[Context]
-    ) -> collections.abc.Generator[contracts.ActorContract, None, None]:
+    def _get_actors_for_context_type(self, context_type: type[Context]) -> collections.abc.Generator[Actor, None, None]:
         """
         Get the actors for a context type.
         @param context_type: The context type to get the actors for.
