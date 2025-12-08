@@ -28,6 +28,22 @@ class Batch:
         return len(self._messages)
 
 
+class Stream:
+    def __init__(self, messages: list[Message]):
+        self._messages = messages
+        self._index = 0
+
+    def __aiter__(self) -> AsyncMessageStreamContract:
+        return self
+
+    async def __anext__(self) -> Message:
+        if self._index >= len(self._messages):
+            raise StopAsyncIteration
+        message = self._messages[self._index]
+        self._index += 1
+        return message
+
+
 class Processor:
     def __init__(
         self,
@@ -251,12 +267,14 @@ class Pipeline:
         @param kwargs: Additional keyword arguments. (Not used, present for interface consistency)
         @return: The processed stream.
         """
+        result: list[Message] = []
         stream = self._make_stream(*messages)
         for processor in self._processors:
             async with self._dependency_container.get_resolver() as dependency_resolver:
                 stream = processor(stream, dependency_resolver)
-        async for message in stream:
-            yield message
+                async for message in stream:
+                    result.append(message)
+        return Stream(result)
 
     async def _make_stream(self, *messages: Message) -> AsyncMessageStreamContract:
         """
