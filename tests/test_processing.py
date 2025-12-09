@@ -8,7 +8,8 @@ import pytest
 from zodchy.codex.cqea import Context, Event, Task
 
 from zombus.definitions import enums, errors
-from zombus.processing import Batch, Cluster, Pipeline, Processor
+from zombus.processing import ClusterMode, Cluster, Pipeline, Processor
+from zombus.processing.internals import Batch
 from zombus.registration.entities import Actor
 from zombus.registration.registry import ActorsRegistry
 
@@ -530,7 +531,7 @@ class TestProcessor:
 class TestCluster:
     """Test class for Cluster functionality."""
 
-    async def _collect_cluster_results(self, cluster, stream, dependency_resolver):
+    async def _collect_cluster_results(self, cluster, stream, dependency_resolver=None):
         """Helper method to collect results from cluster."""
         result = []
         async for message in cluster(stream, dependency_resolver):
@@ -543,11 +544,32 @@ class TestCluster:
         processor2 = Processor(actors_registry)
         cluster = Cluster(processor1, processor2)
         assert len(cluster._processors) == 2
+        assert cluster._mode == ClusterMode.SEQUENTIAL
+        assert cluster._dependency_container is None
 
     def test_cluster_initialization_empty(self):
         """Test that Cluster can be initialized with no processors."""
         cluster = Cluster()
         assert len(cluster._processors) == 0
+
+    def test_cluster_initialization_with_mode(self, actors_registry):
+        """Test that Cluster can be initialized with a mode."""
+        processor = Processor(actors_registry)
+        cluster = Cluster(processor, mode=ClusterMode.PARALLEL)
+        assert cluster._mode == ClusterMode.PARALLEL
+
+    def test_cluster_initialization_with_dependency_container(self, actors_registry, dependency_container):
+        """Test that Cluster can be initialized with a dependency container."""
+        processor = Processor(actors_registry)
+        cluster = Cluster(processor, dependency_container=dependency_container)
+        assert cluster._dependency_container is dependency_container
+        assert cluster.has_own_dc is True
+
+    def test_cluster_has_own_dc_false(self, actors_registry):
+        """Test that has_own_dc is False when no dependency container is provided."""
+        processor = Processor(actors_registry)
+        cluster = Cluster(processor)
+        assert cluster.has_own_dc is False
 
     async def test_cluster_processes_through_all_processors(self, actors_registry, dependency_resolver):
         """Test that Cluster processes stream through all processors."""
@@ -573,6 +595,104 @@ class TestCluster:
 
         result = await self._collect_cluster_results(cluster, empty_stream(), dependency_resolver)
         assert result == []
+
+    async def test_cluster_sequential_mode_with_dependency_container(self, actors_registry, dependency_container):
+        """Test cluster in sequential mode with its own dependency container."""
+
+        def test_usecase(message: TestTask) -> Iterable[TestTask]:
+            return [message]
+
+        actors_registry.register(Actor(test_usecase))
+        processor1 = Processor(actors_registry)
+        processor2 = Processor(actors_registry)
+        cluster = Cluster(
+            processor1, processor2, mode=ClusterMode.SEQUENTIAL, dependency_container=dependency_container
+        )
+
+        async def message_stream():
+            yield TestTask()
+
+        result = await self._collect_cluster_results(cluster, message_stream())
+        assert len(result) == 1
+        assert isinstance(result[0], TestTask)
+
+    async def test_cluster_parallel_mode_with_dependency_container(self, actors_registry, dependency_container):
+        """Test cluster in parallel mode with its own dependency container."""
+
+        def test_usecase(message: TestTask) -> Iterable[TestTask]:
+            return [message]
+
+        actors_registry.register(Actor(test_usecase))
+        processor1 = Processor(actors_registry)
+        processor2 = Processor(actors_registry)
+        cluster = Cluster(processor1, processor2, mode=ClusterMode.PARALLEL, dependency_container=dependency_container)
+
+        async def message_stream():
+            yield TestTask()
+
+        result = await self._collect_cluster_results(cluster, message_stream())
+        # Both processors process the same input, duplicates are removed
+        assert len(result) == 1
+        assert isinstance(result[0], TestTask)
+
+    async def test_cluster_parallel_mode_with_dependency_resolver(self, actors_registry, dependency_resolver):
+        """Test cluster in parallel mode with dependency resolver."""
+
+        def test_usecase(message: TestTask) -> Iterable[TestTask]:
+            return [message]
+
+        actors_registry.register(Actor(test_usecase))
+        processor1 = Processor(actors_registry)
+        processor2 = Processor(actors_registry)
+        cluster = Cluster(processor1, processor2, mode=ClusterMode.PARALLEL)
+
+        async def message_stream():
+            yield TestTask()
+
+        result = await self._collect_cluster_results(cluster, message_stream(), dependency_resolver)
+        # Both processors process the same input, duplicates are removed
+        assert len(result) == 1
+        assert isinstance(result[0], TestTask)
+
+    async def test_cluster_raises_without_resolver_or_container(self, actors_registry):
+        """Test that Cluster raises error when no resolver or container is provided."""
+        processor = Processor(actors_registry)
+        cluster = Cluster(processor)
+
+        async def message_stream():
+            yield TestTask()
+
+        with pytest.raises(RuntimeError, match="No dependency resolver or container provided"):
+            await self._collect_cluster_results(cluster, message_stream(), None)
+
+    async def test_cluster_deduplicates_results(self, dependency_container):
+        """Test that Cluster deduplicates identical messages from different processors."""
+        # Create two registries with actors that return the same message
+        registry1 = ActorsRegistry()
+        registry2 = ActorsRegistry()
+
+        def first_test_usecase(message: TestTask) -> Iterable[TestTask]:
+            return [message]  # Return the same message
+
+        def second_test_usecase(message: TestTask) -> Iterable[TestTask]:
+            return [message]  # Return the same message
+
+        registry1.register(Actor(first_test_usecase))
+        registry2.register(Actor(second_test_usecase))
+
+        processor1 = Processor(registry1)
+        processor2 = Processor(registry2)
+        cluster = Cluster(processor1, processor2, dependency_container=dependency_container)
+
+        test_task = TestTask()
+
+        async def message_stream():
+            yield test_task
+
+        result = await self._collect_cluster_results(cluster, message_stream())
+        # Same message object returned by both processors should be deduplicated
+        assert len(result) == 1
+        assert result[0] is test_task
 
 
 class TestPipeline:
@@ -752,10 +872,15 @@ class TestPipeline:
 
         result = await self._collect_pipeline_results(pipeline, TestTask(), TestTask(), TestTask())
 
-        # Pipeline processes through all processors, collecting results from each iteration
-        # After first processor consumes the stream, subsequent processors receive empty streams
-        assert len(result) == 3
-        assert all(isinstance(m, TestTask) for m in result)
+        # Pipeline chains processors: each processor passes its output to the next
+        # Processor 1 validates TestTask, Processor 2 transforms TestTask to TestEvent
+        # Processor 3 receives TestEvent (not TestTask) from Processor 2
+        # Result includes: 3 TestTask (original + validated) + 3 TestEvent (transformed)
+        assert len(result) == 6
+        task_count = sum(1 for m in result if isinstance(m, TestTask))
+        event_count = sum(1 for m in result if isinstance(m, TestEvent))
+        assert task_count == 3
+        assert event_count == 3
 
     async def test_pipeline_with_batch_processing(self, actors_registry, dependency_container):
         """Test Pipeline with batch processing through multiple processors."""
@@ -781,10 +906,14 @@ class TestPipeline:
 
         result = await self._collect_pipeline_results(pipeline, TestTask(), TestTask(), TestTask())
 
-        # Pipeline processes through all processors, collecting results from each iteration
-        # After first processor consumes the stream, subsequent processors receive empty streams
-        assert len(result) == 3
-        assert all(isinstance(m, TestTask) for m in result)
+        # Pipeline chains processors: each processor passes its output to the next
+        # Processor 1 processes TestTask batch, Processor 2 transforms TestTask to AnotherTask
+        # Result includes: 3 TestTask (from processor 1) + 3 AnotherTask (from processor 2)
+        assert len(result) == 6
+        task_count = sum(1 for m in result if isinstance(m, TestTask))
+        another_count = sum(1 for m in result if isinstance(m, AnotherTask))
+        assert task_count == 3
+        assert another_count == 3
 
     async def test_pipeline_with_filtered_processors(self, dependency_container):
         """Test Pipeline with processors that filter messages."""

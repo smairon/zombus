@@ -1,3 +1,4 @@
+import asyncio
 import collections.abc
 from typing import Any
 
@@ -9,39 +10,8 @@ from zombus.definitions import enums, errors
 from zombus.registration.entities import Actor
 from zombus.registration.registry import ActorsRegistry
 
-
-class Batch:
-    def __init__(self, *messages: Message):
-        self._messages = list(messages) if messages else []
-
-    def append(self, message: Message) -> None:
-        self._messages.append(message)
-
-    @property
-    def message_type(self) -> type[Message] | None:
-        return type(self._messages[0]) if self._messages else None
-
-    def __iter__(self) -> collections.abc.Generator[Message, None, None]:
-        yield from self._messages
-
-    def __len__(self) -> int:
-        return len(self._messages)
-
-
-class Stream:
-    def __init__(self, messages: list[Message]):
-        self._messages = messages
-        self._index = 0
-
-    def __aiter__(self) -> AsyncMessageStreamContract:
-        return self
-
-    async def __anext__(self) -> Message:
-        if self._index >= len(self._messages):
-            raise StopAsyncIteration
-        message = self._messages[self._index]
-        self._index += 1
-        return message
+from .enums import ClusterMode
+from .internals import Batch, Stream
 
 
 class Processor:
@@ -226,15 +196,32 @@ class Processor:
 
 
 class Cluster:
-    def __init__(self, *processors: AsyncProcessorContract):
+    def __init__(
+        self,
+        *processors: AsyncProcessorContract,
+        mode: ClusterMode = ClusterMode.SEQUENTIAL,
+        dependency_container: DIContainerContract | None = None,
+    ):
         """
         Initialize the cluster.
         @param processors: The processors to include in the cluster.
         """
         self._processors = processors
+        self._dependency_container = dependency_container
+        self._mode = mode
+
+    @property
+    def has_own_dc(self) -> bool:
+        """
+        Get the dependency container.
+        @return: The dependency container.
+        """
+        return self._dependency_container is not None
 
     async def __call__(
-        self, stream: AsyncMessageStreamContract, dependency_resolver: DIResolverContract
+        self,
+        stream: AsyncMessageStreamContract,
+        dependency_resolver: DIResolverContract | None = None,
     ) -> AsyncMessageStreamContract:
         """
         Process the stream through the cluster.
@@ -243,44 +230,65 @@ class Cluster:
         @param dependency_resolver: The dependency resolver to use.
         @return: The processed stream.
         """
-        for processor in self._processors:
-            stream = processor(stream, dependency_resolver)
-        async for message in stream:
+        if self._dependency_container is not None:
+            if self._mode == ClusterMode.SEQUENTIAL:
+                async with self._dependency_container.get_resolver() as dependency_resolver:
+                    common_stream = Stream([message async for message in stream])
+                    for message in self._handle_results(
+                        [
+                            await self._handle_stream(common_stream, processor, dependency_resolver)
+                            for processor in self._processors
+                        ]
+                    ):
+                        yield message
+            elif self._mode == ClusterMode.PARALLEL:
+                async with self._dependency_container.get_resolver() as dependency_resolver:
+                    async for message in self._parallel_handler(stream, dependency_resolver):
+                        yield message
+
+        elif dependency_resolver is not None:
+            if self._mode == ClusterMode.SEQUENTIAL:
+                for processor in self._processors:
+                    stream = processor(stream, dependency_resolver)
+                async for message in stream:
+                    yield message
+            elif self._mode == ClusterMode.PARALLEL:
+                async for message in self._parallel_handler(stream, dependency_resolver):
+                    yield message
+
+        else:
+            raise RuntimeError("No dependency resolver or container provided for cluster processing.")
+
+    async def _parallel_handler(
+        self, stream: AsyncMessageStreamContract, dependency_resolver: DIResolverContract
+    ) -> AsyncMessageStreamContract:
+        common_stream = Stream([message async for message in stream])
+        tasks = [self._handle_stream(common_stream, processor, dependency_resolver) for processor in self._processors]
+        for message in self._handle_results(await asyncio.gather(*tasks)):
             yield message
 
-
-class Pipeline:
-    def __init__(self, *processors: AsyncProcessorContract, dependency_container: DIContainerContract):
+    async def _handle_stream(
+        self,
+        stream: Stream,
+        processor: AsyncProcessorContract,
+        dependency_resolver: DIResolverContract,
+    ) -> list[Message]:
         """
-        Initialize the pipeline.
-        @param processors: The processors to include in the pipeline.
-        @param dependency_container: The dependency container to use.
-        """
-        self._dependency_container = dependency_container
-        self._processors = list(processors)
-
-    async def __call__(self, *messages: Message, **kwargs: Any) -> AsyncMessageStreamContract:
-        """
-        Process the stream through the pipeline.
-        For each processor in the pipeline, process the stream with the processor.
+        Run a processor with the stream and dependency resolver, collecting results before yielding.
+        @param processor: The processor to run.
         @param stream: The stream to process.
-        @param kwargs: Additional keyword arguments. (Not used, present for interface consistency)
+        @param dependency_resolver: The dependency resolver to use.
         @return: The processed stream.
         """
-        result: list[Message] = []
-        stream = self._make_stream(*messages)
-        for processor in self._processors:
-            async with self._dependency_container.get_resolver() as dependency_resolver:
-                stream = processor(stream, dependency_resolver)
-                async for message in stream:
-                    result.append(message)
-        return Stream(result)
+        result = []
+        async for message in processor(stream, dependency_resolver):
+            result.append(message)
+        return result
 
-    async def _make_stream(self, *messages: Message) -> AsyncMessageStreamContract:
-        """
-        Make a stream from the messages.
-        @param messages: The messages to make a stream from.
-        @return: A stream of messages.
-        """
-        for message in messages:
-            yield message
+    def _handle_results(self, results: list[list[Message]]) -> collections.abc.Generator[Message, None]:
+        seen = set()
+        for result_stream in results:
+            for message in result_stream:
+                if (_id := id(message)) not in seen:
+                    seen.add(_id)
+                    yield message
