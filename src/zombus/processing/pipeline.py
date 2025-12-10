@@ -33,4 +33,5 @@ class Pipeline:
             else:
                 async with self._dependency_container.get_resolver() as dependency_resolver:
                     stream = Stream([m async for m in processor(stream, dependency_resolver)])
-        return stream
+        async for message in stream:
+            yield message

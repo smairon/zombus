@@ -733,8 +733,7 @@ class TestPipeline:
     async def _collect_pipeline_results(self, pipeline, *messages):
         """Helper method to collect results from pipeline."""
         result = []
-        stream = await pipeline(*messages)
-        async for message in stream:
+        async for message in pipeline(*messages):
             result.append(message)
         return result
 
