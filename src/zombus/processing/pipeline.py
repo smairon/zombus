@@ -29,9 +29,9 @@ class Pipeline:
         stream = Stream(list(messages))
         for processor in self._processors:
             if isinstance(processor, Cluster) and processor.has_own_dc:
-                stream = Stream([m async for m in processor(stream)])
+                stream = Stream([m async for m in processor(stream)])  # type: ignore
             else:
                 async with self._dependency_container.get_resolver() as dependency_resolver:
-                    stream = Stream([m async for m in processor(stream, dependency_resolver)])
+                    stream = Stream([m async for m in processor(stream, dependency_resolver)])  # type: ignore
         async for message in stream:
             yield message

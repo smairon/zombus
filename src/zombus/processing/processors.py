@@ -281,7 +281,7 @@ class Cluster:
         @return: The processed stream.
         """
         result = []
-        async for message in processor(stream, dependency_resolver):
+        async for message in processor(stream, dependency_resolver):  # type: ignore
             result.append(message)
         return result
 
