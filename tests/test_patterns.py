@@ -17,6 +17,12 @@ from zombus.patterns.messages import (
     MappingView,
     ListView,
 )
+from zombus.patterns.errors import (
+    Error,
+    NotFoundError,
+    ValidationError,
+    DuplicationError,
+)
 
 
 # ==================== Test Classes ====================
@@ -414,3 +420,173 @@ class TestModuleExports:
         assert ExportedQuery is Query
         assert ExportedMappingView is MappingView
         assert ExportedListView is ListView
+
+
+# ==================== Error Tests ====================
+
+
+class TestError:
+    """Tests for Error class."""
+
+    def test_error_default_values(self) -> None:
+        """Test Error has correct default values."""
+        error = Error()
+        assert error.code == 500
+        assert error.message == "An error occurred"
+        assert error.details is None
+
+    def test_error_custom_values(self) -> None:
+        """Test Error can be created with custom values."""
+        error = Error(code=503, message="Service unavailable", details={"reason": "maintenance"})
+        assert error.code == 503
+        assert error.message == "Service unavailable"
+        assert error.details == {"reason": "maintenance"}
+
+    def test_error_is_frozen(self) -> None:
+        """Test that Error is frozen dataclass."""
+        error = Error()
+        with pytest.raises(AttributeError):
+            error.code = 400  # type: ignore
+
+    def test_error_inherits_from_zodchy_error(self) -> None:
+        """Test that Error inherits from zodchy.codex.cqea.Error."""
+        error = Error()
+        assert isinstance(error, zodchy.codex.cqea.Error)
+        assert isinstance(error, zodchy.codex.cqea.Message)
+
+    def test_error_equality(self) -> None:
+        """Test that identical errors are equal."""
+        error1 = Error(code=500, message="Error")
+        error2 = Error(code=500, message="Error")
+        assert error1 == error2
+
+    def test_error_inequality(self) -> None:
+        """Test that different errors are not equal."""
+        error1 = Error(code=500, message="Error 1")
+        error2 = Error(code=500, message="Error 2")
+        assert error1 != error2
+
+
+class TestNotFoundError:
+    """Tests for NotFoundError class."""
+
+    def test_not_found_error_default_values(self) -> None:
+        """Test NotFoundError has correct default values."""
+        error = NotFoundError()
+        assert error.code == 404
+        assert error.message == "Resource not found"
+        assert error.details is None
+
+    def test_not_found_error_custom_message(self) -> None:
+        """Test NotFoundError can have custom message."""
+        error = NotFoundError(message="User not found", details={"user_id": "123"})
+        assert error.code == 404
+        assert error.message == "User not found"
+        assert error.details == {"user_id": "123"}
+
+    def test_not_found_error_inherits_from_error(self) -> None:
+        """Test that NotFoundError inherits from Error."""
+        error = NotFoundError()
+        assert isinstance(error, Error)
+        assert isinstance(error, zodchy.codex.cqea.Error)
+
+    def test_not_found_error_is_frozen(self) -> None:
+        """Test that NotFoundError is frozen dataclass."""
+        error = NotFoundError()
+        with pytest.raises(AttributeError):
+            error.message = "Changed"  # type: ignore
+
+
+class TestValidationError:
+    """Tests for ValidationError class."""
+
+    def test_validation_error_default_values(self) -> None:
+        """Test ValidationError has correct default values."""
+        error = ValidationError()
+        assert error.code == 422
+        assert error.message == "Validation error"
+        assert error.details is None
+
+    def test_validation_error_with_field_errors(self) -> None:
+        """Test ValidationError with field validation details."""
+        error = ValidationError(
+            message="Invalid input", details={"email": "Invalid email format", "age": "Must be positive"}
+        )
+        assert error.code == 422
+        assert error.message == "Invalid input"
+        assert error.details == {"email": "Invalid email format", "age": "Must be positive"}
+
+    def test_validation_error_inherits_from_error(self) -> None:
+        """Test that ValidationError inherits from Error."""
+        error = ValidationError()
+        assert isinstance(error, Error)
+        assert isinstance(error, zodchy.codex.cqea.Error)
+
+    def test_validation_error_is_frozen(self) -> None:
+        """Test that ValidationError is frozen dataclass."""
+        error = ValidationError()
+        with pytest.raises(AttributeError):
+            error.details = {"new": "value"}  # type: ignore
+
+
+class TestDuplicationError:
+    """Tests for DuplicationError class."""
+
+    def test_duplication_error_default_values(self) -> None:
+        """Test DuplicationError has correct default values."""
+        error = DuplicationError()
+        assert error.code == 409
+        assert error.message == "Resource already exists"
+        assert error.details is None
+
+    def test_duplication_error_custom_values(self) -> None:
+        """Test DuplicationError with custom values."""
+        error = DuplicationError(message="User already exists", details={"email": "john@example.com"})
+        assert error.code == 409
+        assert error.message == "User already exists"
+        assert error.details == {"email": "john@example.com"}
+
+    def test_duplication_error_inherits_from_error(self) -> None:
+        """Test that DuplicationError inherits from Error."""
+        error = DuplicationError()
+        assert isinstance(error, Error)
+        assert isinstance(error, zodchy.codex.cqea.Error)
+
+    def test_duplication_error_is_frozen(self) -> None:
+        """Test that DuplicationError is frozen dataclass."""
+        error = DuplicationError()
+        with pytest.raises(AttributeError):
+            error.code = 500  # type: ignore
+
+
+class TestErrorModuleExports:
+    """Tests for errors module exports."""
+
+    def test_errors_module_exports(self) -> None:
+        """Test that errors module exports all expected classes."""
+        from zombus.patterns import errors
+
+        assert hasattr(errors, "Error")
+        assert hasattr(errors, "NotFoundError")
+        assert hasattr(errors, "ValidationError")
+        assert hasattr(errors, "DuplicationError")
+
+    def test_patterns_module_exports_errors(self) -> None:
+        """Test that patterns module exports errors submodule."""
+        from zombus import patterns
+
+        assert hasattr(patterns, "errors")
+
+    def test_exported_error_classes_are_correct_types(self) -> None:
+        """Test that exported error classes are the correct types."""
+        from zombus.patterns.errors import (
+            Error as ExportedError,
+            NotFoundError as ExportedNotFoundError,
+            ValidationError as ExportedValidationError,
+            DuplicationError as ExportedDuplicationError,
+        )
+
+        assert ExportedError is Error
+        assert ExportedNotFoundError is NotFoundError
+        assert ExportedValidationError is ValidationError
+        assert ExportedDuplicationError is DuplicationError

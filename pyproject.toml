@@ -1,6 +1,6 @@
 [project]
 name = "zombus"
-version = "0.3.0"
+version = "0.3.1"
 description = "Zombus - zodchy message bus. Library for building event-driven architectures."
 authors = [
     {name = "Smairon", email = "man@smairon.ru"},
