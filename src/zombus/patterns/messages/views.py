@@ -7,11 +7,17 @@ type MappingTransformer = Callable[[Any], dict[str, Any]]
 
 
 class MappingView(View):
-    def __init__(self, data: dict[str, Any]) -> None:
+    def __init__(self, data: Any, *transformers: MappingTransformer) -> None:
         self._data = data
+        self._transformers = transformers
 
     def data(self) -> dict[str, Any]:
-        return self._data
+        result = self._data
+        for transformer in self._transformers:
+            result = transformer(result)
+        if not isinstance(result, dict):
+            raise TypeError("MappingView data must be a dict initially or after transformations")
+        return result
 
 
 class ListView(View):
