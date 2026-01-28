@@ -1,11 +1,17 @@
 from typing import Any
 
-from zodchy.codex.cqea import Message
+from zodchy.codex.cqea import Error, Message
 from zodchy.toolbox.di import DIContainerContract
 from zodchy.toolbox.processing import AsyncMessageStreamContract, AsyncProcessorContract
 
 from .internals import Stream
 from .processors import Cluster
+
+
+class PipelineInteruptedError(Exception):
+    """Exception raised when the pipeline processing is interrupted due to an error message."""
+
+    pass
 
 
 class Pipeline:
@@ -31,7 +37,20 @@ class Pipeline:
             if isinstance(processor, Cluster) and processor.has_own_dc:
                 stream = Stream([m async for m in processor(stream)])  # type: ignore
             else:
-                async with self._dependency_container.get_resolver() as dependency_resolver:
-                    stream = Stream([m async for m in processor(stream, dependency_resolver)])  # type: ignore
+                stream = Stream([m async for m in self._process_uow(processor, stream)])  # type: ignore
+
         async for message in stream:
             yield message
+
+    async def _process_uow(
+        self, processor: AsyncProcessorContract, stream: AsyncMessageStreamContract
+    ) -> AsyncMessageStreamContract:
+        try:
+            async with self._dependency_container.get_resolver() as dependency_resolver:
+                async for m in processor(stream, dependency_resolver):
+                    yield m
+                    if Error in type(m).__mro__:
+                        # raise sentinel exception to trigger dependency resolver's shutdown with exception to handle error
+                        raise PipelineInteruptedError("Pipeline processing error: encountered Error message type.")
+        except PipelineInteruptedError:
+            pass
